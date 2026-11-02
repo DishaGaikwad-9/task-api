@@ -7,6 +7,13 @@ class TaskCreate(BaseModel):
     title: str
 
 
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    done: bool | None = None
+class TaskCreate(BaseModel):
+    title: str
+
+
 # Sample tasks stored in memory
 tasks = [
     {"id": 1, "title": "Learn Python", "done": False},
@@ -68,3 +75,59 @@ def create_task(task_data: TaskCreate):
 
     tasks.append(new_task)
     return new_task
+
+
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task_data: TaskUpdate):
+    # Find the task
+    for task in tasks:
+        if task["id"] == task_id:
+            updates = task_data.model_dump(exclude_unset=True)
+
+            if not updates:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"error": "Provide a title or done field"}
+                )
+
+            if "title" in updates:
+                title = updates["title"]
+
+                if not isinstance(title, str) or not title.strip():
+                    raise HTTPException(
+                        status_code=400,
+                        detail={"error": "Title cannot be empty"}
+                    )
+
+                task["title"] = title.strip()
+
+                if "done" in updates:
+                    done = updates["done"]
+
+                    if not isinstance(done, bool):
+                        raise HTTPException(
+                            status_code=400,
+                            detail={"error": "Done must be true or false"}
+                        )
+
+                    task["done"] = done
+
+                    return task
+
+                raise HTTPException(
+                    status_code=404,
+                    detail={"error": f"Task {task_id} not found"}
+                )
+
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+    for index, task in enumerate(tasks):
+        if task["id"] == task_id:
+            tasks.pop(index)
+            return
+
+    raise HTTPException(
+        status_code=404,
+        detail={"error": f"Task {task_id} not found"}
+    )
